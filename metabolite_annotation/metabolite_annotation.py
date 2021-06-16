@@ -453,6 +453,86 @@ def calc_test5(test):
     return out
 
 
+def calc_test6(test):
+    metabolites = test['metabolites']
+    adducts = test['adducts']
+    signals = test['signals']
+
+    metabolites_j = {}
+    for j, m_j in enumerate(metabolites):
+        if m_j not in metabolites_j:
+            metabolites_j[m_j] = j + 1
+    metabolites_uniq = -np.sort(-np.array(list(metabolites_j.keys())))
+
+    adducts_k = {}
+    for k, a_k in enumerate(adducts):
+        if a_k not in adducts_k:
+            adducts_k[a_k] = k + 1
+    adducts_uniq = np.sort(np.array(list(adducts_k.keys())))
+    # r_adducts_uniq = -np.sort(-uniq_adducts)
+
+    signals_uniq = np.sort(np.array(list(dict.fromkeys(signals))))
+
+    signal_j_k = {}  # Collect found masses for each signal
+    s_next = signals_uniq[0]
+    a_start = 0
+    count = 0
+    for s_i in range(len(signals_uniq)):
+        s = s_next
+        if s_i == len(signals_uniq) - 1:
+            # no next!
+            s_next = None
+        else:
+            s_next = signals_uniq[s_i + 1]
+        a_next = a_start
+        a_start_found = False
+        min_delta = 1e7
+        for m in metabolites_uniq:
+            # m from high to low
+            min_m_delta = 1e7
+            a_next_found = False
+            for a_i in range(a_next, len(adducts_uniq)):
+                # a from low to high
+                a = adducts_uniq[a_i]
+
+                # look out for the best place to start next s
+                if (s_next is not None) and (not a_start_found) and (a > s_next-1000):
+                    a_start = max(a_i - 1, 0)  # Start next s from the a before
+                    a_start_found = True
+
+                count += 1
+
+                # we want to find the local min m_delta
+                if m+a <= 0:
+                    # we want to look for the first positive
+                    continue
+                elif not a_next_found:
+                    a_next = a_i
+                    a_next_found = True
+
+                # Calculate the delta
+                m_delta = abs(s - m - a)
+
+                # Find the local minima
+                if m_delta <= min_m_delta:
+                    min_m_delta = m_delta
+                    a_found = a
+                else:
+                    break
+            if min_m_delta < min_delta:
+                min_delta = min_m_delta
+                delta_m = m
+                delta_a = a_found
+                if min_delta == 0.0:
+                    break
+        signal_j_k[s] = (metabolites_j[delta_m], adducts_k[delta_a])
+
+    print("Count: %d" % count)
+
+    out = ["%d %d" % signal_j_k[signal] for signal in signals]
+    return out
+
+
 def calc_metabolites(tests, calc_method=calc_test5):
     out = []
     for n, test in enumerate(tests):
@@ -477,35 +557,35 @@ def calc_metabolites(tests, calc_method=calc_test5):
 
 
 if __name__ == '__main__':
-    #print("Samples:")
-    #samples = load_database(shared.load_input('sample.txt', with_count_header=False))
-    #samples_output = calc_metabolites(samples)
-    #shared.write_output("sample_output.txt", samples_output)
+    print("Samples:")
+    samples = load_database(shared.load_input('sample.txt', with_count_header=False))
+    samples_output = calc_metabolites(samples)
+    shared.write_output("sample_output.txt", samples_output)
     # Couldn't get the sample to completely match since multiple correct answers are allowed...
     # assert shared.compare('sample_expected.txt', "sample_output.txt")
     # print("No issues.\n")
 
-    #print("\nInput 1:")
-    #input1 = load_database(shared.load_input('1.txt', with_count_header=False))
-    #output1 = calc_metabolites(input1)
-    #shared.write_output("output1.txt", output1)
+    print("\nInput 1:")
+    input1 = load_database(shared.load_input('1.txt', with_count_header=False))
+    output1 = calc_metabolites(input1)
+    shared.write_output("output1.txt", output1)
     #
-    #print("\nInput 2:")
-    #input2 = load_database(shared.load_input('2.txt', with_count_header=False))
-    #output2 = calc_metabolites(input2)
-    #shared.write_output("output2.txt", output2)
+    print("\nInput 2:")
+    input2 = load_database(shared.load_input('2.txt', with_count_header=False))
+    output2 = calc_metabolites(input2)
+    shared.write_output("output2.txt", output2)
 
-    #print("\nInput 3:")
-    #input3 = load_database(shared.load_input('3.txt', with_count_header=False))
-    #output3 = calc_metabolites(input3, calc_test3)
-    #shared.write_output("output3.txt", output3)
+    print("\nInput 3:")
+    input3 = load_database(shared.load_input('3.txt', with_count_header=False))
+    output3 = calc_metabolites(input3, calc_test3)
+    shared.write_output("output3.txt", output3)
 
-    #print("\nInput 4:")
-    #input4 = load_database(shared.load_input('4.txt', with_count_header=False))
-    #output4 = calc_metabolites(input4)
-    #shared.write_output("output4.txt", output4)
+    print("\nInput 4:")
+    input4 = load_database(shared.load_input('4.txt', with_count_header=False))
+    output4 = calc_metabolites(input4)
+    shared.write_output("output4.txt", output4)
 
     print("\nInput 5:")
     input5 = load_database(shared.load_input('5.txt', with_count_header=False))
-    output5 = calc_metabolites(input5)
+    output5 = calc_metabolites(input5, calc_test3)
     shared.write_output("output5.txt", output5)
