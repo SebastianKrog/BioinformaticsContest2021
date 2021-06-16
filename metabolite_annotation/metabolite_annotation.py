@@ -177,17 +177,14 @@ def calc_test3(test):
     adducts_k = {}
     for k, a in enumerate(adducts):
         if a not in adducts_k:
-            adducts_k[a] = j + 1
+            adducts_k[a] = k + 1
     uniq_adducts = list(adducts_k.keys())
     uniq_adducts.sort(reverse=True)
-
-    print(min(signals))
-    print(max(signals))
 
     weights_j_k = {}
     count = 0
     printing = False
-    progress_steps = (len(metabolites)*len(adducts))//100
+    progress_steps = (len(metabolites)*len(adducts))//10
     for m in uniq_metabolites:
         for a in uniq_adducts:
             if count % progress_steps == 0:
@@ -203,7 +200,7 @@ def calc_test3(test):
             if weight > 1100:
                 continue
             else:
-                weights_j_k[weight] = (m, a)
+                weights_j_k[weight] = (metabolites_j[m], adducts_k[a])
 
     weights = list(weights_j_k.keys())  # Remove duplicates, if any
 
@@ -585,6 +582,7 @@ if __name__ == '__main__':
     output4 = calc_metabolites(input4)
     shared.write_output("output4.txt", output4)
 
+    # Requires like 64 gb of ram...
     print("\nInput 5:")
     input5 = load_database(shared.load_input('5.txt', with_count_header=False))
     output5 = calc_metabolites(input5, calc_test3)
