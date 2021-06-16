@@ -1,5 +1,5 @@
 import shared
-
+import numpy as np
 
 def load_database(input):
     length = int(input.pop(0)[0])
@@ -168,18 +168,44 @@ def calc_test3(test):
     adducts = test['adducts']
     signals = test['signals']
 
-    weights = []
+    metabolites_j = {}
+    for j, m in enumerate(metabolites):
+        if m not in metabolites_j:
+            metabolites_j[m] = j + 1
+    uniq_metabolites = list(metabolites_j.keys())
+
+    adducts_k = {}
+    for k, a in enumerate(adducts):
+        if a not in adducts_k:
+            adducts_k[a] = j + 1
+    uniq_adducts = list(adducts_k.keys())
+    uniq_adducts.sort(reverse=True)
+
+    print(min(signals))
+    print(max(signals))
+
     weights_j_k = {}
-    for j, m_j in enumerate(metabolites):
-        for k, a_k in enumerate(adducts):
-            if not m_j + a_k > 0:
+    count = 0
+    printing = False
+    progress_steps = (len(metabolites)*len(adducts))//100
+    for m in uniq_metabolites:
+        for a in uniq_adducts:
+            if count % progress_steps == 0:
+                printing = True
+                if count == progress_steps:
+                    print("Progress: %d" % count, end='')
+                elif count > 0:
+                    print(" %d" % count, end='')
+            count += 1
+            weight = m + a
+            if not weight > 0:
+                break
+            if weight > 1100:
                 continue
             else:
-                weight = m_j + a_k
-                weights.append(weight)
-                weights_j_k[weight] = (j+1, k+1)
+                weights_j_k[weight] = (m, a)
 
-    weights = list(dict.fromkeys(weights))  # Remove duplicates, if any
+    weights = list(weights_j_k.keys())  # Remove duplicates, if any
 
     print("Unique valid weights: %d" % len(weights))
 
@@ -302,22 +328,27 @@ def calc_test4(test):
         delta = 9999999
         m_delta = delta
         found_m, found_a, chosen_a = None, None, None
-        #for m_i in range(signals_lb[count], signals_ub[count]):
-        for m_i in range(0, len(metabolites)):
+        for m_i in range(signals_lb[count], signals_ub[count]):
+        #for m_i in range(0, len(metabolites)):
             m = metabolites[m_i]
+            a_delta = 9999999
             for a in adducts:
                 if m+a <= 0:
                     break
                 new_delta = abs(signal - m - a)
-                if new_delta < m_delta:
-                    m_delta = new_delta
+                if new_delta <= a_delta:
+                    a_delta = new_delta
                     found_a = a
+                    if a_delta == 0.0:
+                        break
                 else:
                     break
-            if m_delta < delta:
-                delta = m_delta
+            if a_delta <= m_delta:
+                m_delta = a_delta
                 found_m = m
                 chosen_a = found_a
+                if delta == 0.0:
+                    break
         signal_weights.append((signal, found_m, chosen_a))
 
     prep_out = []
@@ -333,7 +364,96 @@ def calc_test4(test):
     return out
 
 
-def calc_metabolites(tests):
+def calc_test5(test):
+    metabolites = test['metabolites']
+    adducts = test['adducts']
+    signals = test['signals']
+
+    metabolites_j = {}
+    for j, m_j in enumerate(metabolites):
+        if m_j not in metabolites_j:
+            metabolites_j[m_j] = j + 1
+    metabolites_uniq = np.sort(np.array(list(metabolites_j.keys())))
+
+    adducts_k = {}
+    for k, a_k in enumerate(adducts):
+        if a_k not in adducts_k:
+            adducts_k[a_k] = k + 1
+    adducts_uniq = np.sort(np.array(list(adducts_k.keys())))
+    #r_adducts_uniq = -np.sort(-uniq_adducts)
+
+    signals_uniq = np.sort(np.array(list(dict.fromkeys(signals))))
+
+    signal_j_k = {}  # Collect found masses for each signal
+    adduct_0 = adducts_uniq[min(np.searchsorted(adducts_uniq, 0), len(adducts_uniq)-1)]  # Find an adduct close to 0
+    for signal in signals_uniq:
+        # First, let's calculate a reasonable delta to use for our min
+        min_delta_m = metabolites_uniq[min(np.searchsorted(metabolites_uniq, signal), len(metabolites_uniq)-1)]
+        min_delta_a = adduct_0
+        if min_delta_a + min_delta_m > 0:
+            min_delta = abs(signal - min_delta_m - min_delta_a)
+            if min_delta == 0.0:
+                signal_j_k[signal] = (metabolites_j[min_delta_m], adducts_k[min_delta_a])
+                continue
+        else:
+            min_delta_m = None
+            min_delta_a = None
+            min_delta = 1e7
+
+        # Second, let's find the lowest and highest allowable adduct
+        a_i_lb = np.searchsorted(adducts_uniq, -1*(1000-signal))
+        a_i_ub = min(np.searchsorted(adducts_uniq, signal)+1, len(adducts_uniq))
+
+        # We loop through adducts from low to high within the possible values
+        for a_i in range(a_i_lb, a_i_ub):
+            a = adducts_uniq[a_i]
+            # Unlikelies:
+            # if signal - a > 1002:
+            #     continue
+            # if signal - a < 2:
+            #     # Try once? Nah
+            #     continue
+
+            # We find the most reasonable metabolite to go with the adduct
+            m_i_0 = min(np.searchsorted(metabolites_uniq, signal - a), len(metabolites_uniq)-1)
+
+            # We search forwards...
+            for m_i in range(m_i_0, len(metabolites_uniq)):
+                m = metabolites_uniq[m_i]
+                if m+a <= 0:
+                    continue
+                delta = abs(signal - a - m)
+                if delta == min_delta:
+                    continue
+                if delta < min_delta:
+                    min_delta = delta
+                    min_delta_a = a
+                    min_delta_m = m
+                else:
+                    break
+
+            # And backwards
+            for m_i in range(max(m_i_0-1, 0), -1, -1):
+                m = metabolites_uniq[m_i]
+                delta = abs(signal - a - m)
+                if m+a <= 0:
+                    break
+                if delta == min_delta:
+                    continue
+                if delta < min_delta:
+                    min_delta = delta
+                    min_delta_a = a
+                    min_delta_m = m
+                else:
+                    break
+
+        signal_j_k[signal] = (metabolites_j[min_delta_m], adducts_k[min_delta_a])
+
+    out = ["%d %d" % signal_j_k[signal] for signal in signals]
+    return out
+
+
+def calc_metabolites(tests, calc_method=calc_test5):
     out = []
     for n, test in enumerate(tests):
         print('Test %d:' % n)
@@ -347,7 +467,7 @@ def calc_metabolites(tests):
                   (len(test['metabolites']),
                    len(test['adducts']),
                    len(test['signals'])))
-        result = calc_test4(test)
+        result = calc_method(test)
         if len(result) > 200:
             print('Results: %d' % len(result))
         else:
@@ -365,22 +485,27 @@ if __name__ == '__main__':
     # assert shared.compare('sample_expected.txt', "sample_output.txt")
     # print("No issues.\n")
 
-    # print("\nInput 1:")
-    # input1 = load_database(shared.load_input('1.txt', with_count_header=False))
-    # output1 = calc_metabolites(input1)
-    # shared.write_output("output1.txt", output1)
+    #print("\nInput 1:")
+    #input1 = load_database(shared.load_input('1.txt', with_count_header=False))
+    #output1 = calc_metabolites(input1)
+    #shared.write_output("output1.txt", output1)
     #
-    print("\nInput 2:")
-    input2 = load_database(shared.load_input('2.txt', with_count_header=False))
-    output2 = calc_metabolites(input2)
-    shared.write_output("output2.txt", output2)
+    #print("\nInput 2:")
+    #input2 = load_database(shared.load_input('2.txt', with_count_header=False))
+    #output2 = calc_metabolites(input2)
+    #shared.write_output("output2.txt", output2)
 
     #print("\nInput 3:")
     #input3 = load_database(shared.load_input('3.txt', with_count_header=False))
-    #output3 = calc_metabolites(input3)
+    #output3 = calc_metabolites(input3, calc_test3)
     #shared.write_output("output3.txt", output3)
 
     #print("\nInput 4:")
     #input4 = load_database(shared.load_input('4.txt', with_count_header=False))
     #output4 = calc_metabolites(input4)
     #shared.write_output("output4.txt", output4)
+
+    print("\nInput 5:")
+    input5 = load_database(shared.load_input('5.txt', with_count_header=False))
+    output5 = calc_metabolites(input5)
+    shared.write_output("output5.txt", output5)
