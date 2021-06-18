@@ -1,6 +1,6 @@
 import shared
 import functools
-import copy
+from multiprocessing import Pool
 
 
 def load_data(input):
@@ -186,8 +186,8 @@ def lca_old(largest_node, smallest_node):
 #     return lca_cached(largest_node, smallest_node)
 
 
-def lca(q, d):
-    global root_nodes, values, parents
+def lca(q, d, root_nodes, values, parents):
+    #global root_nodes, values, parents
     q_rn = root_nodes[q]
     d_rn = root_nodes[d]
     if q_rn != d_rn:
@@ -203,27 +203,27 @@ def lca(q, d):
         return values[q]
 
 
-def max_ic(q, d_m):
+def max_ic(q, d_m, root_nodes, values, parents):
     max_found = 0
     for d in d_m:
         if d > q:
-            ic = lca(d, q)
+            ic = lca(d, q, root_nodes, values, parents)
         else:
-            ic = lca(q, d)
+            ic = lca(q, d, root_nodes, values, parents)
         if ic > max_found:
             max_found = ic
     return max_found
 
 
-def sum_max_ic(q_p, d_n):
+def sum_max_ic(q_p, d_n, q_dn_ic, diseases, root_nodes, values, parents):
     # Given a phenotype set of q_p and d_m, find the sum of max IC for LCA(q,d) within d
-    global q_dn_ic, diseases
+    # global q_dn_ic, diseases
     result_sum = 0
     for q in q_p:
         if q_dn_ic and (q, d_n) in q_dn_ic:
             result_sum += q_dn_ic[(q, d_n)]
         else:
-            result_sum += max_ic(q, diseases[d_n])
+            result_sum += max_ic(q, diseases[d_n], root_nodes, values, parents)
     return result_sum
 
 
@@ -265,8 +265,8 @@ def calc_qp_dm():
 # (ignore can never influence the result if called as expected
 # since ignored nodes will always have been checked and empty)
 # Also same problem as below...
-def find_diseases_among_child_nodes(node, ignore=None):
-    global children, node_diseases
+def find_diseases_among_child_nodes(node, children, node_diseases, ignore=None):
+    #global children, node_diseases
     nodes_to_search = [node]
 
     out_diseases = []
@@ -288,13 +288,13 @@ def find_diseases_among_child_nodes(node, ignore=None):
 # On second thought, it might return a list of length Diagnosis
 # One solution might be a parent function that checks whether the node is close to the root node,
 # otherwise it calls the cachable function
-def find_closest_parent_with_disease_children(node):
-    global parents, values
+def find_closest_parent_with_disease_children(node, parents, values, children, node_diseases):
+    #global parents, values
 
     current_node = node
     node_to_ignore = None
     while current_node != -1:
-        child_diseases = find_diseases_among_child_nodes(current_node, node_to_ignore)
+        child_diseases = find_diseases_among_child_nodes(current_node, children, node_diseases, node_to_ignore)
         if child_diseases:
             return child_diseases, values[current_node]  # max IC value from q d_m for all diseases
 
@@ -305,63 +305,51 @@ def find_closest_parent_with_disease_children(node):
     return [], values[current_node]
 
 
-def calc_qp_dm2(method=2):
-    global patients, q_dn_ic, first_parent_with_child_q, children_diseases
-
-    count = 0
-    printed = False
-
-    # Brute forcing like this isn't working...
-    progress_print = len(patients) // 100 or int(1e5)
-
-    out = {}
-    for patient in patients:
-        q_dn_ic = {}
-
-        # Print progress
-        if count % progress_print == 0 and count > 0:
-            if printed:
-                print(" %d" % (count // progress_print), end='')
-            else:
-                printed = True
-                print("Progress: %d" % (count // progress_print), end='')
-        count += 1
-
-        #if len(patient) == 1:
-        #    d_ns, ic = find_closest_parent_with_disease_children(patient[0])
-        #    out[patient] = d_ns[0]  # Just get any of the diseases closest
-        if len(patient) == 1:
-            # One patient phenotype, find the first disease
-            p = patient[0]
-            if p in first_parent_with_child_q:
-                out[patient] = children_diseases[first_parent_with_child_q[p]][1][0]
-            else:
-                out[patient] = children_diseases[p][1][0]
+def calc_patient(
+        patient,
+        parents,
+        values,
+        children,
+        diseases,
+        node_diseases,
+        first_parent_with_child_q,
+        children_diseases,
+        root_nodes
+):
+# if len(patient) == 1:
+#    d_ns, ic = find_closest_parent_with_disease_children(patient[0])
+#    out[patient] = d_ns[0]  # Just get any of the diseases closest
+    if len(patient) == 1:
+        # One patient phenotype, find the first disease
+        p = patient[0]
+        if p in first_parent_with_child_q:
+            return children_diseases[first_parent_with_child_q[p]][1][0]
         else:
-            diseases_found = set()
-            q_dn_ic = {}
-            for q in patient:
-                d_ns, ic = find_closest_parent_with_disease_children(q)
-                for d_n in d_ns:
-                    q_dn_ic[(q, d_n)] = ic
-                    diseases_found.add(d_n)
-            if len(diseases_found) == 1:  # If only one disease is found, that must be it
-                # This must be true since it must be the higest possible sum
-                out[patient] = next(iter(diseases_found))
-            else:
-                max_sum = 0
-                disease_n = 0
-                #for d_n in diseases_found:  # Somehow this isn't actually true for test 2...
-                for d_n in range(len(diseases)):
-                    ic_calc = sum_max_ic(patient, d_n)
-                    if ic_calc > max_sum:
-                        max_sum = ic_calc
-                        disease_n = d_n
-                out[patient] = disease_n
-    if printed:
-        print("")
+            return children_diseases[p][1][0]
+    else:
+        diseases_found = set()
+        q_dn_ic = {}
+        for q in patient:
+            d_ns, ic = find_closest_parent_with_disease_children(q, parents, values, children, node_diseases)
+            for d_n in d_ns:
+                q_dn_ic[(q, d_n)] = ic
+                diseases_found.add(d_n)
+        if len(diseases_found) == 1:  # If only one disease is found, that must be it
+            # This must be true since it must be the higest possible sum
+            return next(iter(diseases_found))
+        else:
+            max_sum = 0
+            disease_n = 0
+            # for d_n in diseases_found:  # Somehow this isn't actually true for test 2...
+            for d_n in range(len(diseases)):
+                ic_calc = sum_max_ic(patient, d_n, q_dn_ic, diseases, root_nodes, values, parents)
+                if ic_calc > max_sum:
+                    max_sum = ic_calc
+                    disease_n = d_n
+            return disease_n
 
-    return out
+#def calc_qp_dm2(method=2):
+
 
 
 def q_list(node):
@@ -502,8 +490,8 @@ def calc_qp_dm3():
     return out
 
 
-def cache_root_nodes():
-    global parents, root_branch_length
+def cache_root_nodes(parents, root_branch_length):
+    #global parents, root_branch_length
 
     # Loops through all vertices, but should only hit every vertex at most twice
     root_node_cache = {}
@@ -530,8 +518,8 @@ def cache_root_nodes():
     return root_node_cache
 
 
-def cache_node_child_disease_q(max_disease_q_per_node=10):
-    global node_diseases, parent, values
+def cache_node_child_disease_q(node_diseases, parents, values, max_disease_q_per_node=10):
+    #global node_diseases, parent, values
 
     out_children = {}
     out_children_diseases = {}
@@ -629,7 +617,7 @@ def calc(data, method=2):
             else:
                 node_diseases[node].append(d_n)
 
-    children, children_diseases, first_parent_with_child_q = cache_node_child_disease_q()
+    children, children_diseases, first_parent_with_child_q = cache_node_child_disease_q(node_diseases, parents, values)
 
     root_branch_length = 0
     for n, parent in enumerate(parents[1:]):
@@ -637,19 +625,27 @@ def calc(data, method=2):
             root_branch_length = n
             break
 
-    root_nodes = cache_root_nodes()
+    root_nodes = cache_root_nodes(parents, root_branch_length)
 
     print("done")
 
     print("Ordered nodes length: %d" % root_branch_length)
 
-    if method > 1:
-        if method == 4:
-            out = calc_qp_dm3()
-        else:
-            out = calc_qp_dm2(method=method)
-    else:
-        out = calc_qp_dm()
+    func = functools.partial(calc_patient,
+                             parents=parents,
+                             values=values,
+                             children=children,
+                             diseases=diseases,
+                             node_diseases=node_diseases,
+                             first_parent_with_child_q=first_parent_with_child_q,
+                             children_diseases=children_diseases,
+                             root_nodes=root_nodes
+    )
+
+    with Pool() as pool:
+        out = pool.map(func, patients)
+        #out = [calc_patients(patient) for patient in patients]
+        out = dict(zip(patients, out))
 
     # Out is a hash of patients => old disease_ns
     prep_out = []
@@ -670,9 +666,9 @@ if __name__ == '__main__':
         'sample',  # * = works, ! = too slow, ~ partial (with current solution)
         # 1,  #*
         # 2,  #*~
-        # 3,  #! too slow
-        # 4,  #! this too
-        # 5,  #! and this...
+        3,  #! too slow
+        4,  #! this too
+        5,  #! and this...
         # 6,  #* Works!
         # 7,  #* slow but doable!
     ]
