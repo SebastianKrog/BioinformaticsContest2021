@@ -14,20 +14,22 @@ def load_data(input_file):
         v, d = input_file.pop(0)
         v, d = int(v), int(d)
         days = []
+        possible_spreaders = set()
         for day_n in range(d):
             contacts_n = int(input_file.pop(0)[0])
             contacts = []
             for contact in range(contacts_n):
                 spreader, target, probability = input_file.pop(0)
                 spreader, target, probability = int(spreader), int(target), float(probability)
+                possible_spreaders.add(spreader)
                 contacts.append(tuple([spreader, target, probability]))
             days.append(contacts)
-        communities.append([v, d, days])
+        communities.append([v, d, days, possible_spreaders])
 
     return communities
 
 
-def calc_median_infected(person, days, iterations=999):
+def calc_median_infected(person, days, iterations=99):
     infected_count = []
     for i in range(iterations):
         infected = {person}
@@ -39,23 +41,37 @@ def calc_median_infected(person, days, iterations=999):
                     infected.add(target)
         infected_count.append(len(infected))
     infected_count.sort()
-    return infected_count[len(infected_count)//2]
+    median_infected_count = infected_count[len(infected_count)//2]
+    avg_infected_count = sum(infected_count) / len(infected_count)
+    return (median_infected_count, avg_infected_count)
 
 
 def calc_output(input_data):
     communities = input_data
     out = []
     for n, community in enumerate(communities):
-        v, d, days = community
+        v, d, days, possible_spreaders = community
         print("Community %d" % (n+1))
         print("V: %d D: %d" % (v, d))
 
         calc = functools.partial(calc_median_infected, days=days)
 
         with Pool() as p:
-            persons_median_infected = p.map(calc, range(v))
+            persons_infected = p.map(calc, possible_spreaders)
 
-        out.append(persons_median_infected.index(max(persons_median_infected)))
+        #persons_infected = map(calc, possible_spreaders)
+
+        median_infected, average_infected = zip(*persons_infected)
+
+        max_median = max(median_infected)
+        max_median_count = [(m, a) for m, a in zip(median_infected, average_infected) if m == max_median]
+        if len(max_median_count) > 1:
+            max_avg = max([l[1] for l in max_median_count])
+            index = average_infected.index(max_avg)
+        else:
+            index = median_infected.index(max_median)
+
+        out.append(index)
         print("Done.")
 
     return out
@@ -66,12 +82,12 @@ if __name__ == '__main__':
         # 'sample',
         # 1,
         # 2,
-        3,
+        # 3,
         4,
-        5,
-        6,
-        7,
-        8,
+        #5,
+        #6,
+        #7,
+        #8,
     ]
 
     if 'sample' in tests_to_run:
