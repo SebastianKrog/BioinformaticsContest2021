@@ -310,14 +310,14 @@ def run_mach(name):
 
 if __name__ == '__main__':
     tests_to_run = [
-        'sample',  # * = works, ! = too slow, ~ partial (with current solution)
-        1,  #*
-        2,  #*~
-        3,  #! too slow
-        4,  #! this too
-        5,  #! and this...
-        6,  #* Works!
-        7,  #* slow but doable!
+        'sample',
+        1,  # They all worked but running past 10 rounds with MACH took too long
+        2,  # Spent way too long not understanding the method
+        3,  # before i decided to just use a well known tool.
+        4,  #
+        5,  # Ran test1 with 100 rounds and test2 with ~50, test4-6 with 10 and test7 with 30
+        6,  # points 1-7: 112.07, 131.45, 149.17, 192.64, 209.41, 199.09, 284.45
+        7,  #
     ]
 
     if 'sample' in tests_to_run:

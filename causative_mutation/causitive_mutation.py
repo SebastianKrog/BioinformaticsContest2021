@@ -343,14 +343,14 @@ def calc_output(tests, greedy=True):
 
 if __name__ == '__main__':
     tests_to_run = [
-        # 'sample',
-        # 1,
-        # 2,  #*~
-        # 3,  #! too slow
-        # 4,  #! this too
-        # 5,  #! and this...
-        6,  #* Works!
-        # 7,  #* slow but doable!
+        'sample',
+        1, # 100/100
+        2, # 150/250
+        3, # 250/250
+        4, # 250/250
+        # 5, # didn't get the rest to work in time, 0/250
+        # 6, # 0/500
+        # 7, # 0/500
     ]
 
     if 'sample' in tests_to_run:

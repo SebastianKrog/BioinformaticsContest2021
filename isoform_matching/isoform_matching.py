@@ -94,15 +94,17 @@ def calc_output(input_data):
 
 if __name__ == '__main__':
     tests_to_run = [
-        #'sample',
-        #"10-welcome",
-        "20-mouse-simple-exact",
-        "30-mouse-exact",
-        "35-mouse-inexact",
-        #5,
-        #6,
-        #7,
-        #8,
+        'sample',
+        "10-welcome", # 100/100, worked like a charm
+        # This was the last thing i worked on before time ran out.
+        # Very sad the below didn't work--even with brute forcing
+        # they resolved with good looking solutions.
+        # But since the problem required perfects answers...
+        # I couldn't figure out the bug (might have been a 1-off error or something)
+        # before time ran out...
+        # "20-mouse-simple-exact", 0/150
+        # "30-mouse-exact", 0/150
+        # "35-mouse-inexact", 0/150
     ]
 
     if 'sample' in tests_to_run:

@@ -79,12 +79,12 @@ def calc_output(input_data):
 
 if __name__ == '__main__':
     tests_to_run = [
-        # 'sample',
-        # 1,
-        # 2,
-        # 3,
-        4,
-        #5,
+        'sample',  # Doing this with simulations worked for the 3 first tests--albiet for some reason not 100%
+        1, # 45/50
+        2, # 42.26/50
+        3, # 29.38/50
+        # 4, After that, it took way too long. Didn't have time to
+        #5, find another solution (i.e. calculate promising spreaders and then simulate them)
         #6,
         #7,
         #8,

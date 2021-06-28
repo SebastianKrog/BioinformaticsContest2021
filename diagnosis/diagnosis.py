@@ -664,13 +664,13 @@ def calc(data, method=2):
 if __name__ == '__main__':
     tests_to_run = [
         'sample',  # * = works, ! = too slow, ~ partial (with current solution)
-        # 1,  #*
-        # 2,  #*~
-        3,  #! too slow
-        4,  #! this too
-        5,  #! and this...
-        # 6,  #* Works!
-        # 7,  #* slow but doable!
+        1,  # All worked
+        2,  # (but some switching between method 2 and 3 might
+        3,  # be necesarry as method 2 had a _very_ high memory requirement)
+        4,  # My later attempts at optimizing didn't pay off with faster run times
+        5,  #
+        6,  #
+        7,  #
     ]
 
     if 'sample' in tests_to_run:
