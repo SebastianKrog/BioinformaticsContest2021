@@ -1,6 +1,6 @@
 # BioinformaticsContest2021
 
-This is my code for the [BioinformaticsContest 2021](https://stepik.org/course/91751/syllabus).
+This is my code for the [Bioinformatics Contest 2021](https://stepik.org/course/91751/syllabus).
 
 I ended up completing the qualification problems with 100% score and 2244.92 points in the final round (147th place).
 
